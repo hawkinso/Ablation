@@ -1,0 +1,82 @@
+---
+title: "FishLengthAnalysis"
+author: "Ada Jones"
+date: "2026-05-05"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse) # for dplyr, tidyr, and ggplot2
+options(scipen = 999)
+
+palette2 <- c("#413C58", "#789c92", "#9bccc6", "#dae6aa", "#94b07d")
+palette <- c("#d55e00", "#cc79a7", "#0072b2", "#f0e442", "#009e73")
+
+```
+
+## R Markdown
+
+```{r cars}
+
+fish.raw <- read.csv("AblationLengths-mm.csv")
+
+fish.sum <- fish.raw %>%
+  group_by(Species) %>%
+  summarize(mean.group = mean (Length),
+            sd.group = sd(Length),
+            n.group = n())
+fish.sum
+
+```
+
+## ANOVA
+```{r}
+
+fish.model <- aov(Length ~ Species, data = fish.raw)
+summary(fish.model) 
+
+```
+
+## QQ Plot
+
+``` {r}
+
+fish.fortify <- fortify(fish.model) %>% select(Species, Length, .fitted, .resid)
+
+ggplot(fish.fortify, aes(sample = .resid)) + 
+  geom_qq(color = palette[2]) +
+  geom_qq_line() +
+  labs(x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+ggplot(fish.fortify, aes(x = .resid)) +
+  geom_histogram(bins = 6, fill = palette[2]) + 
+  labs(x = "Residual Value", y = "Count") +
+  theme_minimal()
+
+```
+## PostHoc Tukey
+
+```{r}
+
+TukeyHSD(fish.model)
+
+fish.raw$Species <- factor(fish.raw$Species, levels = c("Black Neon", "Neon Tetra", "Cherry Barb", "Zebrafish", "Giant Danio"))
+
+ggplot(fish.raw, aes(x = Species, y = Length)) +
+  geom_boxplot(fill = palette[5:1], alpha = 0.6) + 
+    labs(x = "Species", y = "Total Length (mm)") +
+  geom_jitter(alpha = 1, width = 0.25, size = 2) +
+  theme_minimal() +
+  theme(axis.title.x = element_text(vjust = -2)) +
+  theme(axis.title.x = element_text(margin = margin(b = 10))) +
+  theme(axis.title.y = element_text(hjust = 2)) +
+  theme(axis.title.y = element_text(margin = margin(b = 30)))
+
+ggsave(filename = "FINAL-LengthPlot.tiff", plot = last_plot(),
+    scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
+    dpi = 600)
+
+```
+

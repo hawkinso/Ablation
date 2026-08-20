@@ -1,0 +1,50 @@
+﻿Species,Individual,Treatment,Body_Length,Super_HeadNum,Super_TrunkNum,Canal_HeadNum,Canal_TrunkNum,Total
+Neon_Tetra,1,Control,26.58 mm,265,968,4,5,1242
+Neon_Tetra,2 (Ben's NT_1),Control,,325,885,9,6,1225
+Neon_Tetra,3 (Ben's NT_2),Control,,302,1000,5,6,1313
+Neon_Tetra,4 (Ben's NT_3),Control,,344,932,3,3,1282
+Neon_Tetra,2,0.001%,,298,682,2,4,986
+Neon_Tetra,3,0.001%,,280,661,3,4,948
+Neon_Tetra,4,0.001%,24 mm,331,697,0,1,1029
+Neon_Tetra,5,0.001%,25 mm,228,817,0,0,1045
+Neon_Tetra,6,0.001%,27 mm,306,866,0,2,1174
+Neon_Tetra,1,0.002%,25.00 mm,37,133,0,0,170
+Neon_Tetra,2,0.002%,21.11 mm,9,124,0,0,133
+Neon_Tetra,3,0.002%,23.92 mm,45,164,0,0,209
+Neon_Tetra,1,0.002% 48h,22 mm,158,281,0,3,442
+Neon_Tetra,2,0.002% 48h,25 mm,139,300,0,5,444
+Neon_Tetra,1,0.003%,25 mm,36,21,0,0,57
+Neon_Tetra,2,0.003%,25 mm,29,26,0,1,56
+Neon_Tetra,3,0.003%,24 mm,46,33,0,0,79
+Zebrafish,1,Control,25.65,158,386,23,1,568
+Zebrafish,2,Control,29 mm,192,333,17,4,546
+Zebrafish,3,Control,30 mm,151,460,16,3,630
+Zebrafish,1,0.001%,31 mm,20,2,0,0,22
+Zebrafish,2,0.001%,26 mm,15,1,0,0,16
+Zebrafish,3,0.001%,32 mm,25,5,0,0,30
+Zebrafish,1,0.002%,21.96 mm,2,4,0,0,6
+Zebrafish,2,0.002%,26.08 mm,9,3,0,0,12
+Zebrafish,3,0.002%,25.57 mm,1,5,0,0,6
+Black_Tetra,1,Control,30.98 mm,255,1351,22,9,1637
+Black_Tetra,2,Control,32 mm,318,1073,18,7,1416
+Black_Tetra,3,Control,34 mm,333,1397,15,9,1754
+Black_Tetra,1,0.001%,30 mm,7,6,4,4,21
+Black_Tetra,2,0.001%,32 mm,13,4,5,0,22
+Black_Tetra,3,0.001%,37 mm,7,14,4,4,29
+Cherry_Barb,1 (Ben's CB_4),Control,,203,323,17,12,555
+Cherry_Barb,2 (Ben's CB_3),Control,,293,356,17,14,680
+Charry_Barb,3 (Ben's CB_2),Control,,305,453,14,16,788
+Cherry_Barb,4,Control,31 mm,280,503,16,18,817
+Cherry_Barb,1,0.001%,26 mm,210,378,23,6,617
+Cherry_Barb,2,0.001%,25 mm,225,356,21,5,607
+Cherry_Barb,3,0.001%,25 mm,144,282,19,4,449
+Cherry_Barb,1,0.002%,28 mm,0,0,0,0,0
+Cherry_Barb,2,0.002%,32 mm,12,22,0,0,34
+Cherry_Barb,3,0.002%,28.5 mm,21,45,0,0,66
+Giant_Danio,1 (Jerry's Cohort 2 Danio),Control,,13,35,453,586,1087
+Giant_Danio,2 (Ben's GD_2),Control,,14,42,146,325,527
+Giant_Danio,3,Control,78 mm,24,40,295,335,694
+Giant_Danio,1,0.001%,,0,0,0,0,0
+Giant_Danio,2,0.001%,73 mm,0,0,0,0,0
+Giant_Danio,3,0.001%,74.5,0,0,4,0,4
+,,,,,,,,25474

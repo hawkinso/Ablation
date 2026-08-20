@@ -1,0 +1,6 @@
+"0","library(tidyverse) # for dplyr, tidyr, and ggplot2"
+"0","options(scipen = 999)"
+"0",""
+"0","palette2 <- c(""#413C58"", ""#789c92"", ""#9bccc6"", ""#dae6aa"", ""#94b07d"")"
+"0","palette <- c(""#d55e00"", ""#cc79a7"", ""#0072b2"", ""#f0e442"", ""#009e73"")"
+"0",""
