@@ -17,24 +17,24 @@ palette2 <- c("#009e73", "#f0e442", "#cc79a7", "#0072b2", "#d55e00")
 
 ## Loading Raw Data
 ```{r}
-
-fish.raw <- read.csv("NeuromastCounts5.csv")
+fish.raw <- read.csv("NeuromastCounts6.csv")
 fish.raw
-
 ```
 
 ## Making Averages, Cleaning Data, and Calcing Percents
 ``` {r}
+# SH = superficial head, ST = superficial trunk, CH = canal head, CT = canal trunk
 
-fish.num <- fish.raw %>% select(-c(Individual, Body_Length, Total)) %>%
+fish.clean <- fish.raw %>% 
   filter(!is.na(Super_HeadNum)) %>% 
-  filter_out(Treatment == "0.002% 48h") %>%
-  rename(
-    SH.raw = Super_HeadNum,
-    ST.raw = Super_TrunkNum,
-    CH.raw = Canal_HeadNum,
-    CT.raw = Canal_TrunkNum
-      )
+  filter_out(Treatment == "0.002% 48h")
+
+fish.num <- fish.clean %>% select(-c(Individual, Body_Length, Total)) %>%
+  rename(SH.raw = Super_HeadNum,
+         ST.raw = Super_TrunkNum,
+         CH.raw = Canal_HeadNum,
+         CT.raw = Canal_TrunkNum
+         )
 fish.num
 
 
@@ -71,7 +71,6 @@ fish.cent <- fish.map %>%
 
 fish.cent
 ```
-
 ## The Plots >:)
 ```{r}
 #Ordering Labels
@@ -118,16 +117,109 @@ fullplot <- fullplot +
 fullplot
 
 ```
-
-#Saving the plot
+## Plot Without the Percents
 ```{r}
-ggsave(filename = "TEST-NeuromastCountPlot.tiff", plot = fullplot,
+fish.num$Treatment <- factor(fish.num$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
+fish.num$Species <- factor(fish.num$Species, levels = c("Giant_Danio", "Zebrafish", "Cherry_Barb", "Neon_Tetra", "Black_Tetra"))
+
+for (var.col in c("SH.raw", "ST.raw", "CH.raw", "CT.raw" )) {
+  
+    var.num <- fish.num %>% select(c(Species, Treatment, sym(var.col)))
+    var.sum <- var.num %>% group_by(Species, Treatment) %>%
+      summarize(
+        mean = mean(!!sym(var.col)),
+        sd = sd(!!sym(var.col)), .groups = "drop_last"
+      )
+   
+    
+    var.plot <- ggplot(var.sum, aes(x = Treatment, y = mean, color = Species)) +
+      geom_point(size = 1.5, position = position_dodge(width = 0.5)) +
+      geom_point(data = var.num, 
+                 aes(y = !!sym(var.col)), 
+                 size = 0.5, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.3) +
+      geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
+                    width = 0.2, 
+                    position = position_dodge(width = 0.5)) +
+      scale_color_manual(values = palette2) +
+      labs(x = "Dose", y = paste0("Mean # of ", var.col, " Control Neuomasts")) +
+      theme_minimal() +
+      theme(axis.title = element_text(size = 8),
+            plot.tag = element_text(size = 10))
+    
+   assign(str_glue('{var.col}.plot'), var.plot) 
+   
+  }
+
+fullcountplot <- ((SH.raw.plot | ST.raw.plot) / (CH.raw.plot | CT.raw.plot))
+fullcountplot <- fullcountplot + 
+            plot_layout(guides = 'collect') +
+            plot_annotation(tag_levels = "A", title = "Test Plot Title")
+
+fullcountplot
+```
+## Plot with Percent of Total
+```{r}
+# CALCULATIONS
+total.num <- fish.clean %>% select(-c(Individual, Body_Length, Super_HeadNum, Super_TrunkNum, Canal_HeadNum, Canal_TrunkNum))
+
+total.num$Treatment <- factor(total.num$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
+total.num$Species <- factor(total.num$Species, levels = c("Giant_Danio", "Zebrafish", "Cherry_Barb", "Neon_Tetra", "Black_Tetra"))
+
+total.avgs <- total.num %>% 
+  filter(Treatment == "Control") %>%
+  group_by(Species) %>%
+  summarize(total.means = mean(Total))
+
+total.map <- total.num %>%
+  left_join(total.avgs, by = "Species")
+
+total.cent <- total.map %>%
+  mutate('%_of_Control' = Total/total.means*100,
+         .keep = "unused")
+
+
+# MAKING THE PLOT
+
+total.sum <- total.cent %>% group_by(Species, Treatment) %>%
+      summarize(
+        mean = mean(`%_of_Control`),
+        sd = sd(`%_of_Control`), 
+        .groups = "drop_last")
+    
+total.plot <- ggplot(total.sum, aes(x = Treatment, y = mean, color = Species)) +
+      geom_point(size = 1.5, position = position_dodge(width = 0.5)) +
+      geom_point(data = total.cent, 
+                 aes(y = `%_of_Control`), 
+                 size = 0.5, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.3) +
+      geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
+                    width = 0.2, 
+                    position = position_dodge(width = 0.5)) +
+      geom_hline(yintercept = 10)+
+      scale_color_manual(values = palette2) +
+      labs(x = "Dose", y = paste0("% of Mean ", var.col, " Control Neuomasts")) +
+      theme_minimal() +
+      theme(axis.title = element_text(size = 8),
+            plot.tag = element_text(size = 10))
+
+total.plot
+
+
+```
+#Saving the plots
+```{r}
+ggsave(filename = "PERCENTS-NeuromastCountPlot.tiff", plot = fullplot,
     scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
     dpi = 600)
 
-```
-#Alternate Plots
-```{r}
+ggsave(filename = "NO-PERCENT-NeuromastCountPlot.tiff", plot = fullcountplot,
+    scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
+    dpi = 600)
 
-
+ggsave(filename = "TOTAL-PERCENT-NeuromastCountPlot.tiff", plot = total.plot,
+    scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
+    dpi = 600)
 ```
