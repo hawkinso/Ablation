@@ -1,8 +1,0 @@
-"0","library(tidyverse) # for dplyr, tidyr, and ggplot2"
-"0","library(patchwork)"
-"0","options(scipen = 999)"
-"0",""
-"0","palette <- c(""#117733"", ""#DDCC77"", ""#CC6677"", ""#88CCEE"", ""#332288"")"
-"0",""
-"0","palette2 <- c(""#009e73"", ""#f0e442"", ""#cc79a7"", ""#0072b2"", ""#d55e00"")"
-"0",""

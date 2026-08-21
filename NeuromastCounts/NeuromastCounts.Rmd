@@ -4,10 +4,15 @@ author: "Ada Jones"
 date: "2026-08-08"
 output: html_document
 ---
+## Load libraries
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse) # for dplyr, tidyr, and ggplot2
 library(patchwork)
-options(scipen = 999)
+
+```
+
+## Make custom palettes
+```{r palettes}
 
 palette <- c("#117733", "#DDCC77", "#CC6677", "#88CCEE", "#332288")
 
@@ -15,13 +20,19 @@ palette2 <- c("#009e73", "#f0e442", "#cc79a7", "#0072b2", "#d55e00")
 
 ```
 
+## Tell R not to use scientific notation 
+```{r}
+
+options(scipen = 999)
+
+```
 ## Loading Raw Data
 ```{r}
 fish.raw <- read.csv("NeuromastCounts6.csv")
 fish.raw
 ```
 
-## Making Averages, Cleaning Data, and Calcing Percents
+## Summary statistics, Cleaning Data, and Calculating Percents
 ``` {r}
 # SH = superficial head, ST = superficial trunk, CH = canal head, CT = canal trunk
 
@@ -112,7 +123,7 @@ for (var.col in c("SH", "ST", "CH", "CT" )) {
 fullplot <- ((SH.plot | ST.plot) / (CH.plot | CT.plot))
 fullplot <- fullplot + 
             plot_layout(guides = 'collect') +
-            plot_annotation(tag_levels = "A", title = "Test Plot Title")
+            plot_annotation(tag_levels = "A")
 
 fullplot
 
@@ -159,7 +170,7 @@ fullcountplot <- fullcountplot +
 
 fullcountplot
 ```
-## Plot with Percent of Total
+## Calculations for percent neuromasts grouped
 ```{r}
 # CALCULATIONS
 total.num <- fish.clean %>% select(-c(Individual, Body_Length, Super_HeadNum, Super_TrunkNum, Canal_HeadNum, Canal_TrunkNum))
@@ -178,10 +189,10 @@ total.map <- total.num %>%
 total.cent <- total.map %>%
   mutate('%_of_Control' = Total/total.means*100,
          .keep = "unused")
-
+```
 
 # MAKING THE PLOT
-
+```{r total percent plot}
 total.sum <- total.cent %>% group_by(Species, Treatment) %>%
       summarize(
         mean = mean(`%_of_Control`),
@@ -189,26 +200,51 @@ total.sum <- total.cent %>% group_by(Species, Treatment) %>%
         .groups = "drop_last")
     
 total.plot <- ggplot(total.sum, aes(x = Treatment, y = mean, color = Species)) +
-      geom_point(size = 1.5, position = position_dodge(width = 0.5)) +
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_line(aes(group=Species), # adds line across points
+                position = position_dodge(width=0.5),
+                alpha=0.7)+
       geom_point(data = total.cent, 
                  aes(y = `%_of_Control`), 
-                 size = 0.5, 
+                 size = 1.3, 
                  position = position_dodge(width = 0.5), 
-                 alpha = 0.3) +
+                 alpha = 0.6) +
       geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
-                    width = 0.2, 
+                    width = 0.1, 
                     position = position_dodge(width = 0.5)) +
-      geom_hline(yintercept = 10)+
+      geom_hline(yintercept = 10,linetype = "dashed")+
       scale_color_manual(values = palette2) +
-      labs(x = "Dose", y = paste0("% of Mean ", var.col, " Control Neuomasts")) +
-      theme_minimal() +
-      theme(axis.title = element_text(size = 8),
-            plot.tag = element_text(size = 10))
+      labs(x = "Dose", y = "Total neuromasts (%)") +
+      theme_classic() +
+      theme(axis.title = element_text(size = 12),
+            plot.tag = element_text(size = 10),
+            panel.grid.major = element_line(color = "gray", linewidth = 0.8), # vertical lines
+            panel.grid.minor = element_line(color = "gray", linewidth = 0.8), # horizontal
+            legend.position = "top")
 
 total.plot
 
+```
+# Get summary stats by neuormast type 
+Make column that contains neuromast type (superficial vs canal)
+```{r}
+fish.cleanlong <- fish.clean %>%
+  group_by(Species,Treatment) %>% 
+  mutate(CanalSum = ,
+         SuperSum =) %>% 
+  pivot_longer(cols = )
+
+``` 
+# Total percent plot by neuromast type 
+```{r plot}
+
+
+
+
 
 ```
+
+
 #Saving the plots
 ```{r}
 ggsave(filename = "PERCENTS-NeuromastCountPlot.tiff", plot = fullplot,

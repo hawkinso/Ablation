@@ -1,6 +1,0 @@
-"0",""
-"0","ggplot(fish.fortify, aes(x = .resid)) +"
-"0","  geom_histogram(bins = 6, fill = palette[2]) + "
-"0","  labs(x = ""Residual Value"", y = ""Count"") +"
-"0","  theme_minimal()"
-"0",""
