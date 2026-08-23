@@ -34,9 +34,13 @@ fish.clean <- fish.raw %>%
          )
 
 fn.order = function(x) {
+
 x$Treatment <- factor(x$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
 x$Species <- factor(x$Species, levels = c("Giant_Danio", "Zebrafish", "Cherry_Barb", "Neon_Tetra", "Black_Tetra"))
 levels(x$Treatment)
+
+return(x)
+
 }
 
 ```
@@ -57,7 +61,7 @@ fish.map <- fish.num %>%
 # ~ is shorthand for making a new function, .x is a placeholder for the thing being currently processed
 fish.cent <- fish.map %>%
   mutate(across(
-    .cols = ends_with(".raw"), # selecting the target columns
+    .cols = ends_with(".raw"),
     .fns = ~ round(.x / get(str_replace(cur_column(), ".raw", ".means")) * 100, 2),
     .names = "percent.{.col}"
     ),
@@ -67,10 +71,13 @@ fish.cent <- fish.map %>%
          `CH` = percent.CH.raw,
          `CT` = percent.CT.raw)
 
-fn.order(fish.cent)
+
+fish.cent <- fn.order(fish.cent)
+
 ```
 # All four plots combined
 ```{r}
+
 
 for (var.col in c("SH", "ST", "CH", "CT" )) {
   
@@ -80,7 +87,7 @@ for (var.col in c("SH", "ST", "CH", "CT" )) {
         mean = mean(!!sym(var.col)),
         sd = sd(!!sym(var.col)), .groups = "drop_last"
       )
-   
+  
     
     var.plot <- ggplot(var.sum, aes(x = Treatment, y = mean, color = Species)) +
       geom_point(size = 1.5, position = position_dodge(width = 0.5)) +
@@ -112,7 +119,7 @@ fullplot
 ```
 # All four plots with counts instead of percents
 ```{r}
-fn.order(fish.num)
+fish.num <- fn.order(fish.num)
 
 for (var.col in c("SH.raw", "ST.raw", "CH.raw", "CT.raw" )) {
   
@@ -156,7 +163,7 @@ fullcount.plot
 # CALCULATIONS
 total.num <- fish.clean %>% select(c(Species, Treatment, Total))
 
-fn.order(total.num)
+total.num <- fn.order(total.num)
 
 total.avgs <- total.num %>% 
   filter(Treatment == "Control") %>%
@@ -230,8 +237,7 @@ SCT.cent <- SCT.map %>%
   mutate(Percent = count / mean.ctrl * 100,
          .keep = "unused")
 
-SCT.cent$Treatment <- factor(SCT.cent$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
-SCT.cent$Species <- factor(SCT.cent$Species, levels = c("Giant_Danio", "Zebrafish", "Cherry_Barb", "Neon_Tetra", "Black_Tetra"))
+SCT.cent <- fn.order(SCT.cent)
 
 ``` 
 # Percent plot by neuromast type 
