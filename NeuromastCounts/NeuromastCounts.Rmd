@@ -375,7 +375,7 @@ ggsave(filename = "PERCENTS-NeuromastCountPlot.tiff", plot = fullplot,
     scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
     dpi = 600)
 
-ggsave(filename = "NO-PERCENT-NeuromastCountPlot.tiff", plot = fullcountplot,
+ggsave(filename = "NO-PERCENT-NeuromastCountPlot.tiff", plot = fullcount.plot,
     scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
     dpi = 600)
 
