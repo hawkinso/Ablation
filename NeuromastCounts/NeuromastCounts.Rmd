@@ -8,6 +8,7 @@ output: html_document
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse) # for dplyr, tidyr, and ggplot2
 library(patchwork)
+
 ```
 ## Making custom palettes
 ```{r palettes}
@@ -361,13 +362,27 @@ table.means <- fish.num %>% group_by(Species, Treatment) %>%
     .names = "Mean {.col}"
   ))
   
-  
 table.means
-
 
 ```
 
+```{r}
+bodylengths <- fish.raw %>% select(c(Species, Body_Length)) %>%
+  mutate('unitless' = Body_Length %>% str_replace_all(c(" " = "", "m" = "")) %>% as.numeric(),
+                    .keep = "unused")
 
+bodylengths
+  
+body.sum <- bodylengths %>% group_by(Species) %>%
+  summarise(mean = round(mean(unitless, na.rm = TRUE), 1),
+            sd = round(sd(unitless, na.rm = TRUE) ,1),
+            count = length(unitless))
+
+body.sum
+
+
+
+```
 
 #Saving the plots
 ```{r}
@@ -387,7 +402,7 @@ ggsave(filename = "NEUROMAST-TYPE-NeuromastCountPlot.tiff", plot = SCT.plot,
     scale = 1.25, width = par("din")[170], height = par("din")[210], units = c("mm"),
     dpi = 600)
 
-ggsave(filename = "TYPE-OVER-TOTAL-NeuromastCountPlot.tiff", plot = alt.SCT.plot,
+ggsave(filename = "TYPE-OVER-TOTAL-NeuromastCountPlot.pdf", plot = alt.SCT.plot,
     scale = 1.25, width = par("din")[170], height = par("din")[210], units = c("mm"),
     dpi = 600)
 ```
