@@ -14,7 +14,11 @@ library(patchwork)
 ```{r palettes}
 palette <- c("#117733", "#DDCC77", "#CC6677", "#88CCEE", "#332288")
 
-palette2 <- c("#009e73", "#f0e442", "#cc79a7", "#0072b2", "#d55e00")
+palette2 <- c("#009e73", "#DDCC77", "#cc79a7", "#0072b2", "#d55e00") # this yellow is a little too light #f0e442
+
+shapes <- c(15,16,17,18,8)
+  
+lines <- c(2,1,3,5,4)
 ```
 ## Loading Raw Data
 ```{r}
@@ -45,7 +49,79 @@ return(x)
 
 }
 
+
 ```
+
+# Means for tables 
+```{r sum stats}
+
+# Neuromast count averages 
+all.avg <- fish.clean %>%
+  select(-c(Body_Length,Individual)) %>%
+  pivot_longer(cols = !c(Treatment, Species), 
+               names_to = "NeuromastType", 
+               values_to = "count") %>%
+  group_by(Species,Treatment,NeuromastType) %>% 
+  summarize(mean = mean(count),
+            sd = sd(count))
+  
+
+library(dplyr)
+library(tidyr)
+library(flextable)
+
+# 1. Combine Mean and SD, then pivot wide for cleaner layout
+table_data <- all.avg %>% 
+  # Format numeric values to integer
+  mutate(mean_sd = sprintf("%.0f ± %.0f", mean, sd)) %>% 
+  select(Species, Treatment, NeuromastType, mean_sd) %>% 
+  pivot_wider(names_from = NeuromastType, values_from = mean_sd)
+
+# 2. Give custom order of treatment
+table_data <- table_data %>% 
+  mutate(Treatment = factor(Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%")))
+
+# 3. Explicitly arrange and align column order to match header spanners exactly
+table_data <- table_data %>%
+  arrange(Species, Treatment) %>%
+  select(Species, Treatment, CH.raw, CT.raw, SH.raw, ST.raw, Total.raw)
+
+# 4. Make publication ready table
+publication_table_flex <- table_data %>% 
+  flextable() %>% 
+  # Apply a clean, minimalist scientific layout
+  theme_booktabs() %>% 
+  # Merge identical adjacent Species rows vertically
+  merge_v(j = ~ Species) %>% 
+  set_header_labels(
+    Species = "Species", 
+    Treatment = "Treatment", 
+    CH.raw = "Head", 
+    CT.raw = "Trunk", 
+    SH.raw = "Head", 
+    ST.raw = "Trunk", 
+    Total.raw = "Total" 
+  ) %>% 
+  add_header_row(
+    top = TRUE,                  # Places this row above the sub-labels
+    values = c("", "", "Canal", "Superficial", "Total"), # Fixed the trailing comma here
+    colwidths = c(1, 1, 2, 2, 1) # Matches the exact number of columns
+  ) %>% 
+  # Center align headers and counts for standard publication style
+  align(i = 1:2, align = "center", part = "header") %>% 
+  align(j = 3:7, align = "center", part = "body") %>% 
+  set_caption("Table S1. Average neuromast counts across species and doses of gentamicin. Neuromast averages are categorized by canal neuromasts on the head and the trunk, superficial neuromasts on the head and the trunk, and the total number of all types of neuromasts. Averages and standard deviations (SD) are reported as integers.") %>% 
+  autofit()
+
+# Save the table to a Word document in your current working directory
+save_as_docx(
+  "Table S1" = publication_table_flex, 
+  path = "TableS1.docx"
+)
+
+
+```
+
 # Calculations for the 4 percent of total plots
 ```{r}
 fish.num <- fish.clean %>% select(-c(Individual, Body_Length, Total.raw))
@@ -162,23 +238,189 @@ fullcount.plot <- fullcount.plot +
 
 fullcount.plot
 ```
+# Neuromast type by location -Calculations 
+```{r calc}
+
+# Reduce neuromast count columns to one column with levels of neuromast type (location and type)
+type <- fish.clean %>% select(-c(Individual, Body_Length)) %>%
+  pivot_longer(cols = !c(Treatment, Species), 
+               names_to = "NeuromastType", 
+               values_to = "count")
+
+# get the averages of counts for control fish of each species 
+type.avg <- type %>% 
+  filter(Treatment == "Control") %>%
+  group_by(Species, NeuromastType) %>%
+  summarise(mean.ctrl = mean(count[NeuromastType=="Total.raw"]))
+
+
+# Add the calculated control averages to the count data for each individual across treatments 
+type.map <- type %>% 
+  left_join(type.avg, by = c("Species", "NeuromastType"))%>%
+  fill(mean.ctrl, .direction = "down") %>%
+  fill(mean.ctrl, .direction = "up") %>%
+  ungroup()
+
+# Calculate the percent of the total control neuromasts for each treatment and each species (individual data)
+type.cent <- type.map %>%
+  group_by(Treatment,Species,NeuromastType) %>%
+  mutate(Percent = count / mean.ctrl * 100,
+         .keep = "unused") 
+
+type.cent <- fn.order(type.cent)
+type.cent
+
+# Remove total percent 
+type.cent <- type.cent %>%
+  filter(NeuromastType != "Total.raw")
+
+type.cent # use this to plot individual points per fish per treatment
+
+# Now get summary of the variance for the big dots on the plot 
+type.cent.mean <- type.cent %>% 
+  group_by(Species,Treatment,NeuromastType) %>%
+  summarize(mean.percent = mean(Percent),
+            sd.percent = sd(Percent))
+  
+
+```
+
+# Plot neuromast percent of total by location and type 
+```{r plot}
+
+type.loc.plot.SH <- ggplot(type.cent.mean %>% filter(NeuromastType=="SH.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
+      geom_line(aes(group = Species),
+                position = position_dodge(width = 0.5),
+                alpha = 0.7) +
+      scale_shape_manual(values = shapes)+
+      scale_linetype_manual(values = lines)+
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
+                    width = 0.15, 
+                    position = position_dodge(width = 0.5)) +
+      geom_point(data = type.cent %>% filter(NeuromastType=="SH.raw"), 
+                 aes(y = Percent),
+                 size = 2, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.6) +
+      #geom_hline(yintercept = 5,linetype = "dashed") +
+      scale_color_manual(values = palette2) +
+      theme_classic() +
+   ylim(0,250)+
+      labs(x="Dose",y="Superficial head neuromasts (%)")+
+      theme(axis.title = element_text(size = 10),
+            legend.position = "none",
+            aspect.ratio = 1/1.25,
+            panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
+
+type.loc.plot.CH <- ggplot(type.cent.mean %>% filter(NeuromastType=="CH.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
+      geom_line(aes(group = Species),
+                position = position_dodge(width = 0.5),
+                alpha = 0.7) +
+      scale_shape_manual(values = shapes)+
+      scale_linetype_manual(values = lines)+
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
+                    width = 0.15, 
+                    position = position_dodge(width = 0.5)) +
+      geom_point(data = type.cent %>% filter(NeuromastType=="CH.raw"), 
+                 aes(y = Percent), 
+                 size = 2, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.6) +
+     # geom_hline(yintercept = 5,linetype = "dashed") +
+      scale_color_manual(values = palette2) +
+      theme_classic() +
+      ylim(0,6)+
+      labs(x="Dose",y="Canal head neuromasts (%)")+
+      theme(axis.title = element_text(size = 10),
+            legend.position = "none",
+            aspect.ratio = 1/1.25,
+            panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
+  
+type.loc.plot.ST <- ggplot(type.cent.mean %>% filter(NeuromastType=="ST.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
+      geom_line(aes(group = Species),
+                position = position_dodge(width = 0.5),
+                alpha = 0.7) +
+      scale_shape_manual(values = shapes)+
+      scale_linetype_manual(values = lines)+
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
+                    width = 0.15, 
+                    position = position_dodge(width = 0.5)) +
+      geom_point(data = type.cent %>% filter(NeuromastType=="ST.raw"), 
+                 aes(y = Percent), 
+                 size = 2, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.6) +
+     # geom_hline(yintercept = 5,linetype = "dashed") +
+      scale_color_manual(values = palette2) +
+      theme_classic() +
+   ylim(0,250)+
+      labs(x="Dose",y="Superficial trunk neuromasts (%)")+
+      theme(axis.title = element_text(size = 10),
+            legend.position = "none",
+            aspect.ratio = 1/1.25,
+            panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
+
+type.loc.plot.CT <- ggplot(type.cent.mean %>% filter(NeuromastType=="CT.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
+      geom_line(aes(group = Species),
+                position = position_dodge(width = 0.5),
+                alpha = 0.7) +
+      scale_shape_manual(values = shapes)+
+      scale_linetype_manual(values = lines)+
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
+                    width = 0.15, 
+                    position = position_dodge(width = 0.5)) +
+      geom_point(data = type.cent %>% filter(NeuromastType=="CT.raw"), 
+                 aes(y = Percent), 
+                 size = 2, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.6) +
+    #  geom_hline(yintercept = 5,linetype = "dashed") +
+      scale_color_manual(values = palette2) +
+      theme_classic() +
+      ylim(0,6)+
+      labs(x="Dose",y="Canal trunk neuromasts (%)")+
+      theme(axis.title = element_text(size = 10),
+            legend.position = "none",
+            aspect.ratio = 1/1.25,
+            panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
+
+type.loc.plot.SH
+type.loc.plot.CH 
+type.loc.plot.ST
+type.loc.plot.CT
+
+type.loc.plot <- ( type.loc.plot.CH  | type.loc.plot.CT) / (type.loc.plot.SH  | type.loc.plot.ST)
+type.loc.plot
+
+
+
+```
+
 # Just total - Calculations
 ```{r}
 # CALCULATIONS
-total.num <- fish.clean %>% select(c(Species, Treatment, Total))
+total.num <- fish.clean %>% select(c('Species', 'Treatment', 'Total.raw'))
 
 total.num <- fn.order(total.num)
 
 total.avgs <- total.num %>% 
   filter(Treatment == "Control") %>%
   group_by(Species) %>%
-  summarize(total.means = mean(Total))
+  summarize(total.means = mean(Total.raw))
 
 total.map <- total.num %>%
   left_join(total.avgs, by = "Species")
 
 total.cent <- total.map %>%
-  mutate('%_of_Control' = Total/total.means*100,
+  mutate('%_of_Control' = Total.raw/total.means*100,
          .keep = "unused")
 total.cent
 ```
@@ -190,14 +432,14 @@ total.sum <- total.cent %>% group_by(Species, Treatment) %>%
         sd = sd(`%_of_Control`), 
         .groups = "drop_last")
     
-total.plot <- ggplot(total.sum, aes(x = Treatment, y = mean, color = Species)) +
+total.plot <- ggplot(total.sum, aes(x = Treatment, y = mean, color = Species,shape=Species)) +
       geom_point(size = 3, position = position_dodge(width = 0.5)) +
       geom_line(aes(group = Species), # adds line across points
                 position = position_dodge(width=0.5),
                 alpha=0.7)+
       geom_point(data = total.cent, 
                  aes(y = `%_of_Control`), 
-                 size = 1.3, 
+                 size = 2, 
                  position = position_dodge(width = 0.5), 
                  alpha = 0.6) +
       geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
@@ -205,12 +447,13 @@ total.plot <- ggplot(total.sum, aes(x = Treatment, y = mean, color = Species)) +
                     position = position_dodge(width = 0.5)) +
       geom_hline(yintercept = 5,linetype = "dashed")+
       scale_color_manual(values = palette2) +
+  scale_shape_manual(values =shapes)+
       labs(x = "Dose", y = "Total neuromasts (%)") +
       theme_classic() +
       theme(axis.title = element_text(size = 12),
             plot.tag = element_text(size = 10),
-            panel.grid.major = element_line(color = "gray", linewidth = 0.8), # vertical lines
-            panel.grid.minor = element_line(color = "gray", linewidth = 0.8), # horizontal
+            panel.grid.major = element_line(color = "gray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "gray", linewidth = 0.3), # horizontal
             legend.position = "top")
 
 total.plot
@@ -231,53 +474,54 @@ SupCanTot <- fish.clean %>% select(-c(Individual, Body_Length)) %>%
 SCT.avgs <- SupCanTot %>% 
   filter(Treatment == "Control") %>%
   group_by(Species, NeuromastType) %>%
-  summarise(mean.ctrl = mean(count))
+  summarise(mean.ctrl = mean(count[NeuromastType=="Total.raw"]))
 
 SCT.map <- SupCanTot %>% 
-  left_join(SCT.avgs, by = c("Species", "NeuromastType"))
+  left_join(SCT.avgs, by = c("Species","NeuromastType")) %>%
+   fill(mean.ctrl, .direction = "down") %>%
+  fill(mean.ctrl, .direction = "up") %>%
+  ungroup()
 
 
 SCT.cent <- SCT.map %>%
+  group_by(Treatment,Species,NeuromastType) %>%
   mutate(Percent = count / mean.ctrl * 100,
          .keep = "unused")
 
 SCT.cent <- fn.order(SCT.cent)
 
+# Remove total percent 
+SCT.cent <- SCT.cent %>%
+  filter(NeuromastType != "Total.raw")
+
+# to get the summary 
+SCT.cent.mean <- SCT.cent %>%
+  group_by(Species,Treatment,NeuromastType) %>%
+  summarize(mean.percent = mean(Percent),
+            sd.percent= (sd(Percent)))
+
+
 ``` 
 # Percent plot by neuromast type 
 ```{r plot}
 
-for (var in c("Total", "Superficial", "Canal")) {
-  
-    if (var == "Total") {
-      psize = 1
-    } else {
-      psize = 0.6
-    }
-  
-    var.cent <- SCT.cent %>% filter(NeuromastType == sym(var))
-    var.sum <- var.cent %>% group_by(Species, Treatment) %>%
-      summarize(
-        mean = mean(Percent),
-        sd = sd(Percent), 
-        .groups = "drop_last")
-    
-    var.plot <- ggplot(var.sum, aes(x = Treatment, y = mean, color = Species)) +
+    Superficial.plot <- ggplot(SCT.cent.mean %>% filter(NeuromastType == "Superficial"), aes(x = Treatment, y = mean.percent, color = Species,shape=Species)) +
       geom_line(aes(group = Species),
                 position = position_dodge(width = 0.5),
                 alpha = 0.7) +
-      geom_point(size = 2.5 * psize, position = position_dodge(width = 0.5)) +
-      geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), 
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
                     width = 0.15, 
                     position = position_dodge(width = 0.5)) +
-      geom_point(data = var.cent, 
+      geom_point(data = SCT.cent %>% filter(NeuromastType == "Superficial"), 
                  aes(y = Percent), 
-                 size = 1.3 * psize, 
+                 size = 2, 
                  position = position_dodge(width = 0.5), 
                  alpha = 0.6) +
-      geom_hline(yintercept = 10,linetype = "dashed") +
+     # geom_hline(yintercept = 10,linetype = "dashed") +
       scale_color_manual(values = palette2) +
-      labs(x = "Dose", y = paste0(var, " Neuromasts (%)")) +
+  scale_shape_manual(values=shapes)+
+      labs(x = "Dose", y = "Superficial neuromasts (%)") +
       theme_classic() +
       theme(axis.title = element_text(size = 10),
             legend.position = "none",
@@ -286,11 +530,32 @@ for (var in c("Total", "Superficial", "Canal")) {
             panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3) # horizontal
             )
    
-    assign(str_glue('{var}.plot'), var.plot)
-    
-    }
-
-SCT.plot <- Total.plot | (Superficial.plot / Canal.plot)
+Canal.plot <- ggplot(SCT.cent.mean %>% filter(NeuromastType == "Canal"), aes(x = Treatment, y = mean.percent, color = Species,shape=Species)) +
+      geom_line(aes(group = Species),
+                position = position_dodge(width = 0.5),
+                alpha = 0.7) +
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = mean.percent - sd.percent, ymax = mean.percent + sd.percent), 
+                    width = 0.15, 
+                    position = position_dodge(width = 0.5)) +
+      geom_point(data = SCT.cent %>% filter(NeuromastType == "Canal"), 
+                 aes(y = Percent), 
+                 size = 2, 
+                 position = position_dodge(width = 0.5), 
+                 alpha = 0.6) +
+     # geom_hline(yintercept = 10,linetype = "dashed") +
+      scale_color_manual(values = palette2) +
+  scale_shape_manual(values = shapes)+
+      labs(x = "Dose", y = "Canal neuromasts (%)") +
+      theme_classic() +
+      theme(axis.title = element_text(size = 10),
+            legend.position = "none",
+            aspect.ratio = 1/1.25,
+            panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
+            panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3) # horizontal
+            )
+  
+SCT.plot <- total.plot | (Superficial.plot / Canal.plot)
 SCT.plot <- SCT.plot + plot_layout(widths = c(2, 1))
 SCT.plot
 
@@ -351,14 +616,14 @@ for (var in c("Total", "Superficial", "Canal")) {
     
     }
 
-alt.SCT.plot <- alt.Total.plot | (alt.Superficial.plot / alt.Canal.plot)
+alt.SCT.plot <- total.plot | (alt.Superficial.plot / alt.Canal.plot)
 alt.SCT.plot <- alt.SCT.plot + plot_layout(widths = c(2, 1))
 alt.SCT.plot
 
 ```
 #Dividing by Head vs Trunk Calcs AND plotting
 ```{r HEAD VS TRUNK}
-HeadTrunk <- fish.clean %>% select(-c(Individual, Body_Length, Total)) %>%
+HeadTrunk <- fish.clean %>% select(-c(Individual, Body_Length, Total.raw)) %>%
   mutate(trunk = CT.raw + ST.raw,
          head = SH.raw + CH.raw,
          .keep = "unused") %>%
@@ -407,7 +672,7 @@ for (var in c("trunk", "head")) {
                  size = 1.3 * psize, 
                  position = position_dodge(width = 0.5), 
                  alpha = 0.6) +
-      geom_hline(yintercept = 10,linetype = "dashed") +
+      geom_hline(yintercept = 5,linetype = "dashed") +
       scale_color_manual(values = palette2) +
       labs(x = "Dose", y = paste0(var, " Neuromasts (%)")) +
       theme_classic() +
