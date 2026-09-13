@@ -7,20 +7,21 @@ output: html_document
 ## Load libraries
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse) # for dplyr, tidyr, and ggplot2
-library(patchwork)
+library(patchwork) # for figures 
+library(flextable) # for making tables 
 
 ```
-## Making custom palettes
+## Making custom palettes for graphing 
 ```{r palettes}
-palette <- c("#117733", "#DDCC77", "#CC6677", "#88CCEE", "#332288")
 
-palette2 <- c("#009e73", "#DDCC77", "#cc79a7", "#0072b2", "#d55e00") # this yellow is a little too light #f0e442
+palette2 <- c("#009e73", "#DDCC77", "#cc79a7", "#0072b2", "#d55e00") 
 
 shapes <- c(15,16,17,18,8)
   
-lines <- c(2,1,3,5,4)
+lines <- c(2,1,3,5,4) # not used 
 ```
 ## Loading Raw Data
+Super_HeadNum is the count of superficial neuromasts on the head, Super_TrunkNum is the count of superficial neuromasts on the trunk, Canal_HeadNum is the count of canal neuromasts on the head, Canal_TrunkNum is the count of canal neuromasts on the trunk, and total is the total amount of neuromasts regardless of type and location.  
 ```{r}
 fish.raw <- read.csv("NeuromastCounts6.csv")
 fish.raw
@@ -31,7 +32,7 @@ fish.raw
 
 fish.clean <- fish.raw %>% 
   filter(!is.na(Super_HeadNum)) %>% 
-  filter_out(Treatment == "0.002% 48h") %>%
+  filter_out(Treatment == "0.002% 48h") %>% # did not use this treatment in end analysis
   rename(SH.raw = Super_HeadNum,
          ST.raw = Super_TrunkNum,
          CH.raw = Canal_HeadNum,
@@ -39,6 +40,8 @@ fish.clean <- fish.raw %>%
          Total.raw = Total
          )
 
+# This will order the treatments properly in order of increasing dose 
+# This will also order the species in the order of their relationships
 fn.order = function(x) {
 
 x$Treatment <- factor(x$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
@@ -52,7 +55,7 @@ return(x)
 
 ```
 
-# Means for tables 
+# Summary statistics for tables 
 ```{r sum stats}
 
 # Neuromast count averages 
@@ -66,27 +69,23 @@ all.avg <- fish.clean %>%
             sd = sd(count))
   
 
-library(dplyr)
-library(tidyr)
-library(flextable)
-
-# 1. Combine Mean and SD, then pivot wide for cleaner layout
+# Combine Mean and SD, then pivot wide for cleaner layout
 table_data <- all.avg %>% 
   # Format numeric values to integer
-  mutate(mean_sd = sprintf("%.0f ± %.0f", mean, sd)) %>% 
+  mutate(mean_sd = sprintf("%.0f ± %.0f", mean, sd)) %>% # no values after decimal place
   select(Species, Treatment, NeuromastType, mean_sd) %>% 
   pivot_wider(names_from = NeuromastType, values_from = mean_sd)
 
-# 2. Give custom order of treatment
+# Make treatmnet ordered
 table_data <- table_data %>% 
   mutate(Treatment = factor(Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%")))
 
-# 3. Explicitly arrange and align column order to match header spanners exactly
+# Explicitly arrange and align column order to match headers
 table_data <- table_data %>%
   arrange(Species, Treatment) %>%
   select(Species, Treatment, CH.raw, CT.raw, SH.raw, ST.raw, Total.raw)
 
-# 4. Make publication ready table
+# Format table
 publication_table_flex <- table_data %>% 
   flextable() %>% 
   # Apply a clean, minimalist scientific layout
@@ -113,7 +112,7 @@ publication_table_flex <- table_data %>%
   set_caption("Table S1. Average neuromast counts across species and doses of gentamicin. Neuromast averages are categorized by canal neuromasts on the head and the trunk, superficial neuromasts on the head and the trunk, and the total number of all types of neuromasts. Averages and standard deviations (SD) are reported as integers.") %>% 
   autofit()
 
-# Save the table to a Word document in your current working directory
+# Save the table to a Word document 
 save_as_docx(
   "Table S1" = publication_table_flex, 
   path = "TableS1.docx"
@@ -122,10 +121,15 @@ save_as_docx(
 
 ```
 
-# Calculations for the 4 percent of total plots
+### Percent of total neuromasts calculations and plots ###
+
+# Calculations for the 4 percent of total plots (ignore)
+Location and neuromast type by treatment. 
+
 ```{r}
 fish.num <- fish.clean %>% select(-c(Individual, Body_Length, Total.raw))
 
+# Get the control count to divide by 
 fish.avgs <- fish.num %>% filter(Treatment == "Control") %>%
   group_by(Species) %>%
   summarize(SH.means = mean(SH.raw),
@@ -155,7 +159,8 @@ fish.cent <- fn.order(fish.cent)
 fish.avgs
 
 ```
-# All four plots combined
+# All four plots combined by location and neuromast type (ignore)
+Count data
 ```{r}
 
 
@@ -197,7 +202,7 @@ fullplot <- fullplot +
 fullplot
 
 ```
-# All four plots with counts instead of percents
+# All four plots with counts instead of percents (ignore)
 ```{r}
 fish.num <- fn.order(fish.num)
 
@@ -238,7 +243,9 @@ fullcount.plot <- fullcount.plot +
 
 fullcount.plot
 ```
+
 # Neuromast type by location -Calculations 
+Used in publcation. 
 ```{r calc}
 
 # Reduce neuromast count columns to one column with levels of neuromast type (location and type)
@@ -257,7 +264,7 @@ type.avg <- type %>%
 # Add the calculated control averages to the count data for each individual across treatments 
 type.map <- type %>% 
   left_join(type.avg, by = c("Species", "NeuromastType"))%>%
-  fill(mean.ctrl, .direction = "down") %>%
+  fill(mean.ctrl, .direction = "down") %>% # fill in surrounding cells for the same species
   fill(mean.ctrl, .direction = "up") %>%
   ungroup()
 
@@ -288,6 +295,7 @@ type.cent.mean <- type.cent %>%
 # Plot neuromast percent of total by location and type 
 ```{r plot}
 
+# Superficial head neuromasts
 type.loc.plot.SH <- ggplot(type.cent.mean %>% filter(NeuromastType=="SH.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
       geom_line(aes(group = Species),
                 position = position_dodge(width = 0.5),
@@ -314,6 +322,7 @@ type.loc.plot.SH <- ggplot(type.cent.mean %>% filter(NeuromastType=="SH.raw"), a
             panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
             panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
 
+# Canal head neuromasts
 type.loc.plot.CH <- ggplot(type.cent.mean %>% filter(NeuromastType=="CH.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
       geom_line(aes(group = Species),
                 position = position_dodge(width = 0.5),
@@ -339,7 +348,8 @@ type.loc.plot.CH <- ggplot(type.cent.mean %>% filter(NeuromastType=="CH.raw"), a
             aspect.ratio = 1/1.25,
             panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
             panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
-  
+
+# Superficial trunk neuromasts 
 type.loc.plot.ST <- ggplot(type.cent.mean %>% filter(NeuromastType=="ST.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
       geom_line(aes(group = Species),
                 position = position_dodge(width = 0.5),
@@ -366,6 +376,7 @@ type.loc.plot.ST <- ggplot(type.cent.mean %>% filter(NeuromastType=="ST.raw"), a
             panel.grid.major = element_line(color = "lightgray", linewidth = 0.3), # vertical lines
             panel.grid.minor = element_line(color = "lightgray", linewidth = 0.3))# horizontal
 
+# Canal trunk neuromasts 
 type.loc.plot.CT <- ggplot(type.cent.mean %>% filter(NeuromastType=="CT.raw"), aes(x = Treatment, y = mean.percent, color = Species,shape = Species)) +
       geom_line(aes(group = Species),
                 position = position_dodge(width = 0.5),
@@ -404,7 +415,7 @@ type.loc.plot
 
 ```
 
-# Just total - Calculations
+# Total overall neuromasts - Calculations
 ```{r}
 # CALCULATIONS
 total.num <- fish.clean %>% select(c('Species', 'Treatment', 'Total.raw'))
@@ -424,7 +435,7 @@ total.cent <- total.map %>%
          .keep = "unused")
 total.cent
 ```
-# Just total - Plot 
+# Total overall neuromasts - Plot 
 ```{r}
 total.sum <- total.cent %>% group_by(Species, Treatment) %>%
       summarize(
@@ -461,7 +472,7 @@ total.plot
 ```
 
 ## Dividing Neuromasts by Type
-# Calculations for neuromasts grouped by type
+# Calculations for neuromasts grouped by type (superficial vs canal)
 ```{r}
 SupCanTot <- fish.clean %>% select(-c(Individual, Body_Length)) %>%
   mutate(Canal = CH.raw + CT.raw,
@@ -561,7 +572,7 @@ SCT.plot
 
 
 ```
-# Dividing all types by total mean AND plotting
+# Dividing all types by total mean AND plotting (unused)
 ```{r}
 alt.SCT.map <- SupCanTot %>% 
   left_join(total.avgs, by = c("Species"))
@@ -621,7 +632,7 @@ alt.SCT.plot <- alt.SCT.plot + plot_layout(widths = c(2, 1))
 alt.SCT.plot
 
 ```
-#Dividing by Head vs Trunk Calcs AND plotting
+#Dividing by Head vs Trunk Calcs AND plotting (unused)
 ```{r HEAD VS TRUNK}
 HeadTrunk <- fish.clean %>% select(-c(Individual, Body_Length, Total.raw)) %>%
   mutate(trunk = CT.raw + ST.raw,
@@ -693,39 +704,8 @@ HT.plot
 
 ```
 
-```{r table means}
-table.sum <- fish.clean %>% group_by(Species, Treatment) %>%
-  summarise(across(
-    .cols = ends_with(".raw"),
-    .fns = list(mean = mean,
-                 sd = sd),
-    .names = "{.col}.{.fn}")) %>% 
-  rename_with(~str_remove(., '.raw'))
 
-table.combo <- table.sum %>% group_by(Species, Treatment) %>%
-  mutate(across(
-    .cols = ends_with(".mean"),
-    .fns = ~ sprintf("%.2f ± %.2f", .x, get(str_replace(cur_column(), ".mean", ".sd")))),
-    .keep = "unused") %>%
-  rename("Superficial Head" = SH.mean,
-         "Superficial Trunk" = ST.mean,
-         "Canal Trunk" = CT.mean,
-         "Canal Head" = CH.mean,
-         "Total" = Total.mean)
-
-table.combo$Treatment <- factor(table.combo$Treatment, levels = c("Control", "0.001%", "0.002%", "0.003%"))
-table.combo$Species <- factor(table.combo$Species, levels = c("Giant_Danio", "Zebrafish", "Cherry_Barb", "Neon_Tetra", "Black_Tetra"))
-levels(table.combo$Treatment)
-
-table.combo
-           
-write.csv(table.combo, file = "sample-SupplementalTable.csv", row.names = FALSE)
-
-
-
-
-```
-#Bodylength Calcs
+#Bodylength Calculations
 ```{r}
 bodylengths <- fish.raw %>% select(c(Species, Body_Length)) %>%
   mutate('unitless' = Body_Length %>% str_replace_all(c(" " = "", "m" = "")) %>% as.numeric(),
@@ -743,7 +723,7 @@ body.sum
 
 
 ```
-#Saving the plots
+#Saving the plots (unused)
 ```{r}
 ggsave(filename = "PERCENTS-NeuromastCountPlot.tiff", plot = fullplot,
     scale = 1, width = par("din")[170], height = par("din")[210], units = c("mm"),
