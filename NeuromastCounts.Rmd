@@ -23,7 +23,7 @@ lines <- c(2,1,3,5,4) # not used
 ## Loading Raw Data
 Super_HeadNum is the count of superficial neuromasts on the head, Super_TrunkNum is the count of superficial neuromasts on the trunk, Canal_HeadNum is the count of canal neuromasts on the head, Canal_TrunkNum is the count of canal neuromasts on the trunk, and total is the total amount of neuromasts regardless of type and location.  
 ```{r}
-fish.raw <- read.csv("NeuromastCounts6.csv")
+fish.raw <- read.csv("Supplemental Data/Jonesetal2026_SupplementaryData1.csv")
 fish.raw
 ```
 ## Cleaning Raw Data & Ordering Function
